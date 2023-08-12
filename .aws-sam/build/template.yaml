@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'thumbnail-rust
+
+  Sample SAM Template for thumbnail-rust
+
+  '
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+Resources:
+  ThumbnailsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: thumbnail-bucket-rust-oleksii
+  ThumbnailFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+      SamResourceId: ThumbnailFunction
+    Properties:
+      CodeUri: ThumbnailFunction
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+      - x86_64
+    Policies:
+    - S3FullAccessPolicy:
+        BucketName:
+          Ref: ThumbnailsBucket
+    Events:
+      S3ThumbnailGenerator:
+        Type: S3
+        Properties:
+          Bucket:
+            Ref: ThumbnailsBucket
+          Events: s3:ObjectCreated:*
+          Filter:
+            Suffix: .png
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
