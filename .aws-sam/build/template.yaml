@@ -5,6 +5,10 @@ Description: 'thumbnail-rust
   Sample SAM Template for thumbnail-rust
 
   '
+Parameters:
+  BucketName:
+    Type: String
+    Default: thumbnail-bucket-rust
 Globals:
   Function:
     Timeout: 10
@@ -13,7 +17,13 @@ Resources:
   ThumbnailsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: thumbnail-bucket-rust-oleksii
+      BucketName:
+        Ref: BucketName
+  ThumbnailsBucketOutput:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: ${BucketName}-thumbs
   ThumbnailFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -25,19 +35,38 @@ Resources:
       Runtime: provided.al2
       Architectures:
       - x86_64
-    Policies:
-    - S3FullAccessPolicy:
-        BucketName:
-          Ref: ThumbnailsBucket
-    Events:
-      S3ThumbnailGenerator:
-        Type: S3
-        Properties:
-          Bucket:
-            Ref: ThumbnailsBucket
-          Events: s3:ObjectCreated:*
-          Filter:
-            Suffix: .png
+      Policies:
+      - S3ReadPolicy:
+          BucketName:
+            Ref: BucketName
+      - S3WritePolicy:
+          BucketName:
+            Fn::Sub: ${BucketName}-thumbs
+      Events:
+        S3NewObjectEvent:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: ThumbnailsBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .png
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+        - ThumbnailFunction
+        - Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - ThumbnailsBucket
+        - Arn
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
